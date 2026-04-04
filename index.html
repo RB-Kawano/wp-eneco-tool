@@ -659,8 +659,10 @@
     // elem.innerHTML上では既にブラウザが&nbsp;をU+00A0に変換済みのため
     // innerHTML文字列内の&nbsp;とU+00A0の両方を処理する
     html = html.split('&nbsp;').join('\u00a0');  // 文字列としての&nbsp;
-    html = html.replace(/[\u00a0\u0020]{2,}/g, m => '\u3000'.repeat(Math.max(1, Math.round(m.length / 2))));
-    html = html.replace(/[\u00a0]/g, '\u3000');
+    // U+00A0と半角スペースの連続を全角スペースに変換（数はそのまま保持）
+    html = html.replace(/[\u00a0\u0020]+/g, m => '\u3000'.repeat(m.length));
+    // 過剰な全角スペースを防ぐため最大10個に制限
+    html = html.replace(/\u3000{10,}/g, '\u3000'.repeat(10));
     // スタイル属性・class属性・Google固有属性を除去
     html = html.replace(/\s(style|class|id|dir|data-[a-z-]+)="[^"]*"/gi, '');
     // spanタグは中身だけ残す
