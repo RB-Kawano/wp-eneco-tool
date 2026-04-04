@@ -337,6 +337,10 @@
               </select>
             </div>
             <div class="form-group">
+              <label>スラッグ<span id="slug-source-badge"></span></label>
+              <input type="text" id="postSlug" placeholder="例：0017-2" />
+            </div>
+            <div class="form-group">
               <label>カノニカル URL<span id="canonical-source-badge"></span></label>
               <input type="text" id="canonicalUrl" placeholder="https://e-neco.com/slug/" oninput="updateCanonicalPreview()" />
               <div class="url-preview" id="canonicalPreview">未設定</div>
@@ -598,6 +602,9 @@
         const found = opts.find(o => o.textContent.includes(matched.category) || matched.category.includes(o.textContent));
         if (found) sel.value = found.value;
       }
+      if (matched.slug) {
+        document.getElementById('postSlug').value = matched.slug;
+      }
     } else if (docUrl && sheetData.length) {
       matchMsg = '\n（スプレッドシートに一致する行が見つかりませんでした）';
     } else if (!sheetData.length) {
@@ -749,7 +756,7 @@
 
   // ヘッダー行から列インデックスを検出
   function detectColumns(headerRow) {
-    let descIdx = -1, canonicalIdx = -1, categoryIdx = -1;
+    let descIdx = -1, canonicalIdx = -1, categoryIdx = -1, slugIdx = -1;
     headerRow.forEach((cell, i) => {
       const c = cell.toLowerCase().replace(/[\s\n\r_]/g, '');
       if (descIdx === -1 && (
@@ -762,8 +769,11 @@
       if (categoryIdx === -1 && (
         c === 'カテゴリ' || c === 'カテゴリー' || c === 'category' || c === 'categories'
       )) categoryIdx = i;
+      if (slugIdx === -1 && (
+        c.includes('スラッグ') || c.includes('slug') || c.includes('スラグ')
+      )) slugIdx = i;
     });
-    return { descIdx, canonicalIdx, categoryIdx };
+    return { descIdx, canonicalIdx, categoryIdx, slugIdx };
   }
 
   function matchSheetData(docUrl) {
@@ -772,7 +782,7 @@
     const docId = m ? m[1] : '';
 
     // 1行目をヘッダーとして列を自動検出
-    const { descIdx, canonicalIdx, categoryIdx } = detectColumns(sheetData[0]);
+    const { descIdx, canonicalIdx, categoryIdx, slugIdx } = detectColumns(sheetData[0]);
 
     for (const row of sheetData) {
       const rowStr = row.join(',');
@@ -781,6 +791,7 @@
           description:  descIdx     >= 0 ? (row[descIdx]     || '').trim() : '',
           canonicalUrl: canonicalIdx >= 0 ? (row[canonicalIdx] || '').trim() : '',
           category:     categoryIdx  >= 0 ? (row[categoryIdx]  || '').trim() : '',
+          slug:         slugIdx      >= 0 ? (row[slugIdx]      || '').trim() : '',
         };
       }
     }
@@ -863,6 +874,7 @@
       ['タイトル', title ? title.substring(0,50)+(title.length>50?'…':'') : '⚠️ 未入力'],
       ['本文文字数', content ? content.replace(/<[^>]+>/g,'').length+' 文字' : '⚠️ 未入力'],
       ['ディスクリプション', desc ? desc.length+' 文字' : '未設定'],
+      ['スラッグ', document.getElementById('postSlug').value||'未設定'],
       ['カノニカルURL', document.getElementById('canonicalUrl').value||'未設定'],
       ['カテゴリー', catSel.options[catSel.selectedIndex]?.text||'未設定'],
       ['ステータス', document.getElementById('postStatus').value],
@@ -960,7 +972,9 @@
       const catVal=catSel?.value||catIdEl?.value; const categoryIds=(catVal&&!isNaN(catVal))?[parseInt(catVal)]:[];
       showStatus('📤 投稿データを送信中...','loading'); setProgress(65);
 
+      const slug = document.getElementById('postSlug').value.trim();
       const postData={title,content,status:document.getElementById('postStatus').value,categories:categoryIds};
+      if (slug) postData.slug = slug;
       if (featuredMediaId) postData.featured_media=featuredMediaId;
 
       const res=await fetch(`${WP_URL}/wp-json/wp/v2/posts`,{method:'POST',headers:{'Authorization':WP_AUTH,'Content-Type':'application/json'},body:JSON.stringify(postData)});
