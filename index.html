@@ -575,6 +575,7 @@
         bodyHtml += `<h4>${h4text}</h4>\n`;
       } else if (tag === 'table') {
         // 表：そのまま保持（Google Docsのスタイルは除去）
+        console.log('[table] 表を検出:', elem.rows?.length, '行');
         bodyHtml += cleanTable(elem) + '\n';
       } else if (tag === 'ul' || tag === 'ol') {
         bodyHtml += cleanList(elem, tag) + '\n';
@@ -720,6 +721,8 @@
     html = html.replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1');
     // colgroup等は除去
     html = html.replace(/<colgroup[\s\S]*?<\/colgroup>/gi, '');
+    // td/th内のpタグを除去（中身は保持）
+    html = html.replace(/<(td|th)([^>]*)>\s*<p>([\s\S]*?)<\/p>\s*<\/(td|th)>/gi, '<$1$2>$3</$4>');
     return `<figure class="wp-block-table"><table>${html.replace(/^<table[^>]*>/, '').replace(/<\/table>$/, '')}</table></figure>`;
   }
 
