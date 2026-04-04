@@ -490,6 +490,17 @@
     const doc = parser.parseFromString(rawHtml, 'text/html');
     const body = doc.body;
 
+    // ===== コメントブロックを除去 =====
+    // Googleドキュメントのコメント本文ブロック（class="c14"のdiv）を除去
+    body.querySelectorAll('div').forEach(div => {
+      if (div.querySelector('a[id^="cmnt"]')) div.remove();
+    });
+    // コメントアンカー（[a][b]など）のsupタグを除去
+    body.querySelectorAll('sup a[href^="#cmnt"]').forEach(a => {
+      const sup = a.closest('sup');
+      if (sup) sup.remove();
+    });
+
     // ===== タイトル抽出 =====
     // H1より前のメモ段落（◆●など）を除去してタイトルを探す
     const allElems = Array.from(body.querySelectorAll('h1,h2,h3,h4,h5,h6,p,table,ul,ol'));
@@ -633,7 +644,7 @@
     let html = elem.innerHTML || '';
     // デバッグ：字下げ行のinnerHTMLを確認
     if (html.includes(' ') || html.includes('&nbsp;')) {
-      console.log('[cleanParagraph] innerHTML:', JSON.stringify(html.substring(0, 200)));
+      console.log('[cleanParagraph] innerHTML before:', JSON.stringify(html.substring(0, 200)));
     }
     // Googleのコメントアンカー（[a],[b]など）を除去（<sup>ごと）
     html = html.replace(/<sup[^>]*>\s*<a[^>]*href="#cmnt[^"]*"[^>]*>[^<]*<\/a>\s*<\/sup>/gi, '');
@@ -660,7 +671,7 @@
     // テキストが空なら null
     const text = (elem.innerText || elem.textContent || '').trim();
     if (!text) return null;
-    return `<p>${html.trim()}</p>`;
+    return `<p>${html.replace(/^[ \t\r\n]+/, '').replace(/[ \t\r\n]+$/, '')}</p>`;  // 半角スペース・改行のみtrip（全角スペースは保持）
   }
 
   // リストをWordPress用HTMLに変換
