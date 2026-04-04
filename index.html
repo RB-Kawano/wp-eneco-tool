@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WordPress 入稿ツール | e-neco</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+  :root {
+    --bg:#f5f6f8; --surface:#fff; --surface2:#f0f2f5; --border:#e2e5eb; --border2:#d0d5de;
+    --accent:#2563eb; --accent-light:#eff4ff; --accent2:#7c3aed;
+    --success:#16a34a; --success-light:#f0fdf4;
+    --danger:#dc2626; --danger-light:#fef2f2;
+    --text:#111827; --text-muted:#6b7280; --text-dim:#9ca3af;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+    --shadow-md:0 4px 16px rgba(0,0,0,.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+  /* ===== ログイン ===== */
+  #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(135deg,#eff4ff,#f5f3ff)}
+  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:44px 40px;width:100%;max-width:420px;box-shadow:var(--shadow-md)}
+  .login-logo{width:52px;height:52px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:22px}
+  .login-card h2{font-size:22px;font-weight:700;margin-bottom:4px}
+  .login-card .subtitle{font-size:13px;color:var(--text-muted);margin-bottom:28px}
+  .login-hint{background:var(--accent-light);border:1px solid #bfdbfe;border-radius:10px;padding:13px 15px;font-size:12px;color:#1e40af;margin-bottom:22px;line-height:1.8}
+  .login-hint strong{color:#1e3a8a}
+  .login-hint a{color:var(--accent);text-decoration:none;font-weight:500}
+  .login-hint a:hover{text-decoration:underline}
+
+  /* ===== メイン ===== */
+  #appScreen{display:none}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:56px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+  .logo{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .topbar-title{font-size:15px;font-weight:700}
+  .topbar-sub{font-size:11px;color:var(--text-muted)}
+  .user-badge{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--success-light);border:1px solid #bbf7d0;border-radius:20px;padding:5px 12px;font-size:12px;color:var(--success);font-weight:500}
+  .logout-btn{background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;padding:0;margin-left:4px}
+  .logout-btn:hover{color:var(--danger)}
+  .main-content{padding:28px;max-width:1200px}
+
+  /* ステップ */
+  .steps{display:flex;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+  .step{flex:1;padding:13px 8px;text-align:center;cursor:pointer;transition:background .2s;border-right:1px solid var(--border)}
+  .step:last-child{border-right:none}
+  .step:hover{background:var(--bg)}
+  .step.active{background:var(--accent-light)}
+  .step-num{width:22px;height:22px;border-radius:50%;background:var(--border2);color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-bottom:4px}
+  .step.active .step-num{background:var(--accent);color:white}
+  .step.done .step-num{background:var(--success);color:white}
+  .step-label{font-size:11px;color:var(--text-muted);display:block}
+  .step.active .step-label{color:var(--accent);font-weight:600}
+  .panel{display:none}.panel.active{display:block}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:16px;box-shadow:var(--shadow)}
+  .card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .card-title .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+
+  label{display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:5px}
+  input[type=text],input[type=password],textarea,select{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'Noto Sans JP',sans-serif;font-size:13px;padding:9px 12px;outline:none;transition:border-color .15s,box-shadow .15s;resize:vertical}
+  input[type=text]:focus,input[type=password]:focus,textarea:focus,select:focus{border-color:var(--accent);background:white;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+  textarea.content-area{min-height:280px;line-height:1.7}
+  .form-group{margin-bottom:16px}
+  .char-count{text-align:right;font-size:11px;color:var(--text-dim);margin-top:3px;font-family:'DM Mono',monospace}
+  .char-count.over{color:var(--danger);font-weight:600}
+  .char-count.good{color:var(--success)}
+
+  .grid2{display:grid;grid-template-columns:1fr 320px;gap:18px}
+
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+  .toggle-row:last-child{border-bottom:none}
+  .toggle-label{font-size:13px;color:var(--text)}
+  .toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+  .toggle input{display:none}
+  .toggle-track{position:absolute;inset:0;background:var(--border2);border-radius:11px;cursor:pointer;transition:background .2s}
+  .toggle input:checked+.toggle-track{background:var(--accent)}
+  .toggle-track::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;background:white;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .toggle input:checked+.toggle-track::after{transform:translateX(18px)}
+
+  .btn{width:100%;padding:12px;border:none;border-radius:10px;font-family:'Noto Sans JP',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+  .btn-primary{background:var(--accent);color:white;box-shadow:0 2px 8px rgba(37,99,235,.3)}
+  .btn-primary:hover{background:#1d4ed8;transform:translateY(-1px);box-shadow:0 6px 16px rgba(37,99,235,.3)}
+  .btn-secondary{background:var(--surface2);color:var(--text);border:1.5px solid var(--border2)}
+  .btn-secondary:hover{background:var(--border)}
+  .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .btn-sm{width:auto;padding:7px 14px;font-size:12px;border-radius:7px}
+
+  .status-box{padding:12px 14px;border-radius:10px;font-size:13px;display:none;line-height:1.6;white-space:pre-wrap}
+  .status-box.show{display:block}
+  .status-box.loading{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+  .status-box.success{background:var(--success-light);border:1px solid #bbf7d0;color:#15803d}
+  .status-box.error{background:var(--danger-light);border:1px solid #fecaca;color:#b91c1c}
+
+  .progress-bar{height:4px;background:var(--border);border-radius:2px;margin-top:10px;overflow:hidden;display:none}
+  .progress-bar.show{display:block}
+  .progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s ease;width:0%}
+
+  /* 手順バッジ */
+  .how-to{background:var(--accent-light);border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:12px;color:#1e40af;line-height:2}
+  .how-to strong{color:#1e3a8a;font-size:13px}
+  .how-to ol{margin-left:16px;margin-top:6px}
+  .how-to li{margin-bottom:2px}
+  .how-to a{color:var(--accent);text-decoration:none;font-weight:500}
+  .how-to a:hover{text-decoration:underline}
+
+  .auto-badge{display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:5px;padding:2px 7px;font-size:10px;font-family:'DM Mono',monospace;margin-left:7px;vertical-align:middle}
+  .csv-badge{background:#eff4ff;color:#1d4ed8;border-color:#bfdbfe}
+
+  .upload-zone{border:2px dashed var(--border2);border-radius:10px;padding:20px 14px;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--bg)}
+  .upload-zone:hover,.upload-zone.dragover{border-color:var(--accent);background:var(--accent-light)}
+  .upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .upload-zone .upload-icon{font-size:26px;margin-bottom:6px}
+  .upload-zone .upload-text{font-size:13px;color:var(--text-muted);font-weight:500}
+  .upload-zone .upload-sub{font-size:11px;color:var(--text-dim);margin-top:3px}
+
+  .image-preview-wrap{margin-top:10px;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:10px;display:none;align-items:center;gap:10px}
+  .image-preview-wrap.show{display:flex}
+  .image-preview-wrap img{width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--border)}
+  .img-info{flex:1;min-width:0}
+  .img-info .img-name{font-size:12px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .img-info .img-size{font-size:10px;color:var(--text-muted);margin-top:2px;font-family:'DM Mono',monospace}
+  .img-clear{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;padding:2px;flex-shrink:0}
+  .img-clear:hover{color:var(--danger)}
+
+  .body-images-list{display:flex;flex-direction:column;gap:7px;margin-bottom:10px}
+  .body-img-row{display:flex;align-items:center;gap:9px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:8px 10px}
+  .body-img-row img{width:40px;height:40px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border)}
+  .bi-info{flex:1;min-width:0}
+  .bi-name{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bi-status{font-size:10px;color:var(--text-dim);margin-top:2px}
+  .bi-status.uploaded{color:var(--success);font-weight:500}
+  .add-body-img-btn{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1.5px dashed var(--border2);border-radius:8px;color:var(--accent);font-size:12px;font-weight:600;padding:8px 14px;cursor:pointer;transition:all .2s;font-family:'Noto Sans JP',sans-serif;position:relative;overflow:hidden}
+  .add-body-img-btn:hover{background:var(--accent-light);border-color:var(--accent)}
+  .add-body-img-btn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+  .url-preview{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);background:var(--bg);padding:7px 10px;border-radius:6px;border:1px solid var(--border);margin-top:5px;word-break:break-all}
+  .divider{height:1px;background:var(--border);margin:14px 0}
+  .link{color:var(--accent);text-decoration:none;font-size:13px;font-weight:500}
+  .link:hover{text-decoration:underline}
+  select option{background:white}
+
+  .spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite;display:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  code{background:var(--surface2);padding:1px 5px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);border:1px solid var(--border)}
+
+  .input-wrap{position:relative}
+  .pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;padding:2px}
+  .pw-toggle:hover{color:var(--text-muted)}
+
+  .summary-row{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .summary-row:last-child{border-bottom:none}
+  .summary-key{color:var(--text-muted);min-width:130px;font-size:12px}
+  .summary-val{color:var(--text);font-weight:500}
+
+  /* CSVアップロードゾーン */
+  .csv-zone{border:2px dashed var(--border2);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .2s;position:relative;display:flex;align-items:center;gap:12px;background:var(--bg)}
+  .csv-zone:hover,.csv-zone.dragover{border-color:var(--accent);background:var(--accent-light)}
+  .csv-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .csv-icon{font-size:24px;flex-shrink:0}
+  .csv-text{font-size:13px;color:var(--text-muted);font-weight:500}
+  .csv-sub{font-size:11px;color:var(--text-dim);margin-top:2px}
+  .csv-loaded{background:var(--success-light);border-color:#bbf7d0}
+  .csv-loaded .csv-text{color:var(--success)}
+</style>
+</head>
+<body>
+
+<!-- ===== ログイン ===== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">✍</div>
+    <h2>WordPress 入稿ツール</h2>
+    <p class="subtitle">e-neco.com 編集チーム用</p>
+    <div class="login-hint">
+      <strong>アプリケーションパスワードの取得方法</strong><br>
+      WordPress管理画面 → ユーザー → プロフィール<br>
+      → 一番下「アプリケーションパスワード」欄で新規作成<br>
+      <a href="https://e-neco.com/wp-admin/profile.php" target="_blank">→ プロフィールページを開く ↗</a>
+    </div>
+    <div class="form-group">
+      <label>WordPressユーザー名</label>
+      <input type="text" id="loginUser" placeholder="例：taro-yamada" />
+    </div>
+    <div class="form-group">
+      <label>アプリケーションパスワード</label>
+      <div class="input-wrap">
+        <input type="password" id="loginPass" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" onkeydown="if(event.key==='Enter')doLogin()" />
+        <button class="pw-toggle" onclick="togglePw()" tabindex="-1">👁</button>
+      </div>
+    </div>
+    <div id="loginStatus" class="status-box" style="margin-bottom:14px"></div>
+    <button class="btn btn-primary" onclick="doLogin()">
+      <span class="spinner" id="loginSpinner"></span>
+      <span id="loginLabel">ログイン</span>
+    </button>
+  </div>
+</div>
+
+<!-- ===== メインアプリ ===== -->
+<div id="appScreen">
+  <div class="topbar">
+    <div class="logo">✍</div>
+    <div>
+      <div class="topbar-title">WordPress 入稿ツール</div>
+      <div class="topbar-sub">e-neco.com</div>
+    </div>
+    <div class="user-badge">
+      <span>●</span><span id="loggedInUser"></span>
+      <button class="logout-btn" onclick="doLogout()">ログアウト</button>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="steps">
+      <div class="step active" id="step-tab-1" onclick="goStep(1)">
+        <div class="step-num" id="step-num-1">1</div>
+        <span class="step-label">記事を読み込む</span>
+      </div>
+      <div class="step" id="step-tab-2" onclick="goStep(2)">
+        <div class="step-num" id="step-num-2">2</div>
+        <span class="step-label">内容を確認・編集</span>
+      </div>
+      <div class="step" id="step-tab-3" onclick="goStep(3)">
+        <div class="step-num" id="step-num-3">3</div>
+        <span class="step-label">投稿実行</span>
+      </div>
+    </div>
+
+    <!-- ===== STEP 1 ===== -->
+    <div class="panel active" id="panel-1">
+
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>GoogleドキュメントURL</div>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">記事のGoogleドキュメントURLを貼り付けてください。タイトル・本文・見出しを自動で抽出します。<br>※ドキュメントは「リンクを知っている全員が閲覧可」に設定してください。</p>
+        <div class="form-group" style="margin-bottom:0">
+          <div class="doc-input-area">
+            <input type="text" id="gdocUrl" placeholder="https://docs.google.com/document/d/..." />
+            <button class="fetch-btn" onclick="fetchGDoc()">読み込む</button>
+          </div>
+        </div>
+        <div id="gdocStatus" class="status-box" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>スプレッドシート連携</div>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">ディスクリプション（C列）・カノニカルURL（R列）をGoogleドキュメントURLをキーに自動取得します。<br>※スプレッドシートは「リンクを知っている全員が閲覧可」に設定してください。</p>
+        <div class="form-group">
+          <label>スプレッドシートID</label>
+          <input type="text" id="sheetId" value="15mqZj7mWX-dekihYE_pNfjDgi1i4-g3WMs6qBmqd21Y" />
+        </div>
+        <div class="form-group">
+          <label>シートID（gid）</label>
+          <input type="text" id="sheetGid" value="26357450" />
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="loadSheet()">📊 再読み込み</button>
+        <div id="sheetStatus" class="sheet-status" style="display:none;margin-top:8px"></div>
+      </div>
+    </div>
+
+    <!-- ===== STEP 2 ===== -->
+    <div class="panel" id="panel-2">
+      <div class="grid2">
+        <div>
+          <div class="card">
+            <div class="card-title"><span class="dot"></span>記事コンテンツ</div>
+            <div class="form-group">
+              <label>タイトル（H1）<span id="title-source-badge"></span></label>
+              <input type="text" id="postTitle" placeholder="タイトルを入力" />
+            </div>
+            <div class="form-group">
+              <label>本文<span id="content-source-badge"></span></label>
+              <textarea class="content-area" id="postContent" placeholder="本文を入力..."></textarea>
+              <button onclick="reformatContent()" style="margin-top:8px;background:var(--accent-light);border:1.5px solid #bfdbfe;border-radius:7px;color:var(--accent);font-size:12px;font-weight:600;padding:7px 12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif">🔧 見出しタグを整形する</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="dot"></span>本文内 画像</div>
+            <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">本文中の挿入位置に <code>&lt;!--img:ファイル名--&gt;</code> と書いておくと自動で差し込まれます。</p>
+            <div class="body-images-list" id="bodyImagesList"></div>
+            <label class="add-body-img-btn">
+              ＋ 画像を追加
+              <input type="file" accept="image/*" multiple onchange="addBodyImages(event)">
+            </label>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="dot"></span>SEO メタ情報</div>
+            <div class="form-group">
+              <label>メタディスクリプション<span id="desc-source-badge"></span></label>
+              <textarea id="metaDesc" rows="3" oninput="updateCharCount()"></textarea>
+              <div class="char-count" id="descCount">0 文字</div>
+            </div>
+            <div class="form-group">
+              <label>SEO タイトルタグ <span style="color:var(--text-dim);font-weight:400">（空欄 = H1タイトルを使用）</span></label>
+              <input type="text" id="seoTitle" oninput="updateSeoTitleCount()" placeholder="空欄でOK" />
+              <div class="char-count" id="seoTitleCount">0 文字</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-title"><span class="dot"></span>アイキャッチ画像</div>
+            <div class="upload-zone" id="featuredZone"
+                 ondragover="event.preventDefault();this.classList.add('dragover')"
+                 ondragleave="this.classList.remove('dragover')"
+                 ondrop="handleFeaturedDrop(event)">
+              <input type="file" accept="image/*" onchange="handleFeaturedFile(event)">
+              <div class="upload-icon">🖼</div>
+              <div class="upload-text">クリックまたはドラッグ&ドロップ</div>
+              <div class="upload-sub">JPG / PNG / WebP</div>
+            </div>
+            <div class="image-preview-wrap" id="featuredPreview">
+              <img id="featuredThumb" src="" alt="">
+              <div class="img-info">
+                <div class="img-name" id="featuredName"></div>
+                <div class="img-size" id="featuredSize"></div>
+              </div>
+              <button class="img-clear" onclick="clearFeatured()">×</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="dot"></span>投稿設定</div>
+            <div class="form-group">
+              <label>カテゴリー</label>
+              <select id="categorySelect"><option value="">読み込み中...</option></select>
+            </div>
+            <div class="form-group">
+              <label>投稿ステータス</label>
+              <select id="postStatus">
+                <option value="draft">下書き（draft）</option>
+                <option value="publish">即時公開</option>
+                <option value="pending">レビュー待ち</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>カノニカル URL<span id="canonical-source-badge"></span></label>
+              <input type="text" id="canonicalUrl" placeholder="https://e-neco.com/slug/" oninput="updateCanonicalPreview()" />
+              <div class="url-preview" id="canonicalPreview">未設定</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title"><span class="dot"></span>インデックス設定</div>
+            <div class="toggle-row">
+              <span class="toggle-label">検索インデックスを許可</span>
+              <label class="toggle"><input type="checkbox" id="robotsIndex" checked><div class="toggle-track"></div></label>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-label">リンクをフォロー（follow）</span>
+              <label class="toggle"><input type="checkbox" id="robotsFollow" checked><div class="toggle-track"></div></label>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="goStep(3)">次へ：投稿実行 →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== STEP 3 ===== -->
+    <div class="panel" id="panel-3">
+      <div style="max-width:560px;margin:0 auto">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>投稿サマリー</div>
+          <div id="summary"></div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>投稿実行</div>
+          <div id="statusBox" class="status-box"></div>
+          <div id="progressBar" class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+            <button class="btn btn-secondary" onclick="goStep(2)">← 内容を修正する</button>
+            <button class="btn btn-primary" id="submitBtn" onclick="submitPost()">
+              <span class="spinner" id="spinner"></span>
+              <span id="submitLabel">🚀 WordPressに投稿する</span>
+            </button>
+          </div>
+          <div id="postLink" style="margin-top:12px;display:none">
+            <div class="divider"></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:7px">投稿リンク</div>
+            <a id="postLinkUrl" class="link" target="_blank" href="#">投稿を開く →</a>
+            <a id="editLinkUrl" class="link" target="_blank" href="#" style="margin-left:16px">編集画面 →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const WP_URL = 'https://e-neco.com';
+  let WP_AUTH = '';
+  let featuredFile = null;
+  let bodyImageFiles = [];
+  let sheetData = [];
+
+  // ===== ログイン =====
+  async function doLogin() {
+    const user = document.getElementById('loginUser').value.trim();
+    const pass = document.getElementById('loginPass').value.trim();
+    if (!user || !pass) return showLoginStatus('ユーザー名とパスワードを入力してください', 'error');
+    const auth = 'Basic ' + btoa(user + ':' + pass);
+    setLoginLoading(true);
+    showLoginStatus('認証中...', 'loading');
+    try {
+      let res;
+      try {
+        res = await fetch(`${WP_URL}/wp-json/wp/v2/users/me`, { headers: { 'Authorization': auth } });
+      } catch(networkErr) {
+        throw new Error('接続エラー（CORS）: ' + networkErr.message);
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error('HTTP ' + res.status + ': ' + (body.message || '認証失敗'));
+      }
+      const me = await res.json();
+      WP_AUTH = auth;
+      document.getElementById('loggedInUser').textContent = me.name || user;
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('appScreen').style.display = 'block';
+      loadCategories();
+      loadSheet();
+    } catch(e) { showLoginStatus('❌ ' + e.message, 'error'); }
+    finally { setLoginLoading(false); }
+  }
+
+  function doLogout() {
+    WP_AUTH = '';
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display = 'none';
+    showLoginStatus('', '');
+  }
+
+  function togglePw() {
+    const inp = document.getElementById('loginPass');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+
+  function showLoginStatus(msg, type) {
+    const el = document.getElementById('loginStatus');
+    el.textContent = msg;
+    el.className = 'status-box' + (msg ? ' show ' + type : '');
+  }
+
+  function setLoginLoading(on) {
+    document.getElementById('loginLabel').textContent = on ? 'ログイン中...' : 'ログイン';
+    document.getElementById('loginSpinner').style.display = on ? 'block' : 'none';
+  }
+
+  // ===== ステップ =====
+  function goStep(n) {
+    if (n === 3) buildSummary();
+    [1,2,3].forEach(i => {
+      document.getElementById(`panel-${i}`).classList.toggle('active', i === n);
+      document.getElementById(`step-tab-${i}`).classList.toggle('active', i === n);
+      if (i < n) document.getElementById(`step-tab-${i}`).classList.add('done');
+    });
+  }
+
+  // ===== ドキュメントテキスト解析 =====
+  // pixta素材番号にマッチする正規表現
+  const PIXTA_RE = /[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+\s*[）)]/gi;
+
+  async function fetchGDoc() {
+    const url = document.getElementById('gdocUrl').value.trim();
+    if (!url) return showGdocStatus('URLを入力してください', 'error');
+    const match = url.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
+    if (!match) return showGdocStatus('正しいGoogleドキュメントのURLを入力してください', 'error');
+    const docId = match[1];
+    showGdocStatus('📄 ドキュメントを取得中...', 'loading');
+    try {
+      const res = await fetch(`https://docs.google.com/document/d/${docId}/export?format=html`);
+      if (!res.ok) throw new Error('取得失敗（ドキュメントを「リンクを知っている全員が閲覧可」に設定してください）');
+      const html = await res.text();
+      processDocHtml(html, url);
+      debugSpaceParagraph(url);
+    } catch(e) {
+      showGdocStatus('❌ ' + e.message, 'error');
+    }
+  }
+
+  function processDocHtml(rawHtml, docUrl) {
+    // Google DocsのHTMLをDOMとしてパース
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(rawHtml, 'text/html');
+    const body = doc.body;
+
+    // ===== タイトル抽出 =====
+    // H1より前のメモ段落（◆●など）を除去してタイトルを探す
+    const allElems = Array.from(body.querySelectorAll('h1,h2,h3,h4,h5,h6,p,table,ul,ol'));
+    let titleText = '';
+    let titleElem = null;
+
+    // まずH1タグを探す
+    const h1 = body.querySelector('h1');
+    if (h1) {
+      titleText = h1.innerText || h1.textContent || '';
+      titleElem = h1;
+    } else {
+      // H1がなければ最初のH2の直前の段落をタイトルとして使用
+      const firstH2 = body.querySelector('h2');
+      if (firstH2 && firstH2.previousElementSibling) {
+        titleElem = firstH2.previousElementSibling;
+        titleText = titleElem.innerText || titleElem.textContent || '';
+      }
+    }
+
+    titleText = titleText.trim();
+
+    // ===== 本文抽出 =====
+    // タイトル要素より前の要素（メモ行）と、タイトル自体を除外
+    let bodyHtml = '';
+    let reachedTitle = false;
+    let skipNextPixta = false; // タイトル直後のpixta番号をスキップ
+
+    for (const elem of allElems) {
+      // タイトル要素はスキップ
+      if (elem === titleElem) { reachedTitle = true; skipNextPixta = true; continue; }
+      if (!reachedTitle) continue;
+
+      const text = (elem.innerText || elem.textContent || '').trim();
+
+      // pixta素材番号の処理
+      const pixtaMatch = text.match(/^[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)\s*[）)]\s*$/i);
+      if (pixtaMatch) {
+        if (skipNextPixta) { skipNextPixta = false; continue; } // タイトル直後はアイキャッチ用なのでスキップ
+        bodyHtml += `<!--img:${pixtaMatch[1]}-->\n`;
+        continue;
+      }
+      skipNextPixta = false;
+
+      // 空要素はスキップ
+      if (!text) continue;
+
+      const tag = elem.tagName.toLowerCase();
+
+      if (tag === 'h2') {
+        // H2: pixta番号とタグを除去してテキストだけ取り出す
+        const h2text = cleanHeadingText(elem);
+        bodyHtml += `<h2>${h2text}</h2>\n`;
+      } else if (tag === 'h3') {
+        const h3text = cleanHeadingText(elem);
+        bodyHtml += `<h3>${h3text}</h3>\n`;
+      } else if (tag === 'h4') {
+        const h4text = cleanHeadingText(elem);
+        bodyHtml += `<h4>${h4text}</h4>\n`;
+      } else if (tag === 'table') {
+        // 表：そのまま保持（Google Docsのスタイルは除去）
+        bodyHtml += cleanTable(elem) + '\n';
+      } else if (tag === 'ul' || tag === 'ol') {
+        bodyHtml += cleanList(elem, tag) + '\n';
+      } else if (tag === 'p') {
+        // 段落内のpixta番号を画像プレースホルダーに変換
+        const pHtml = cleanParagraph(elem);
+        if (pHtml) bodyHtml += `${pHtml}\n`;
+      }
+    }
+
+    document.getElementById('postTitle').value = titleText;
+    document.getElementById('title-source-badge').innerHTML = '<span class="auto-badge">✨ 自動抽出</span>';
+    document.getElementById('postContent').value = bodyHtml.trim();
+    document.getElementById('content-source-badge').innerHTML = '<span class="auto-badge">✨ 自動抽出</span>';
+
+    // スプレッドシートと照合
+    const matched = matchSheetData(docUrl);
+    let matchMsg = '';
+    if (matched) {
+      if (matched.description) {
+        document.getElementById('metaDesc').value = matched.description;
+        updateCharCount();
+        document.getElementById('desc-source-badge').innerHTML = '<span class="auto-badge csv-badge">📊 スプレッドシート</span>';
+        matchMsg = '\nディスクリプション・カノニカルURL・カテゴリーをスプレッドシートから自動設定しました。';
+      }
+      if (matched.canonicalUrl) {
+        document.getElementById('canonicalUrl').value = matched.canonicalUrl;
+        updateCanonicalPreview();
+        document.getElementById('canonical-source-badge').innerHTML = '<span class="auto-badge csv-badge">📊 スプレッドシート</span>';
+      }
+      if (matched.category) {
+        const sel = document.getElementById('categorySelect');
+        const opts = Array.from(sel.options);
+        const found = opts.find(o => o.textContent.includes(matched.category) || matched.category.includes(o.textContent));
+        if (found) sel.value = found.value;
+      }
+    } else if (docUrl && sheetData.length) {
+      matchMsg = '\n（スプレッドシートに一致する行が見つかりませんでした）';
+    } else if (!sheetData.length) {
+      matchMsg = '\n（スプレッドシートが未読み込みです）';
+    }
+
+    showGdocStatus('✅ 解析完了！タイトル・本文を自動抽出しました。' + matchMsg, 'success');
+    setTimeout(() => goStep(2), 1000);
+  }
+
+  // デバッグ：スペースの字下げ段落のHTMLを確認
+  function debugSpaceParagraph(docUrl) {
+    const match = docUrl.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
+    if (!match) return;
+    fetch(`https://docs.google.com/document/d/${match[1]}/export?format=html`)
+      .then(r => r.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const paras = Array.from(doc.body.querySelectorAll('p'));
+        // スペースっぽい段落を探してHTMLをコンソールに出力
+        for (const p of paras) {
+          const text = p.textContent || '';
+          if (text.match(/^[\s\u00a0\u3000]+/) && text.trim()) {
+            console.log('=== スペース字下げ段落 ===');
+            console.log('textContent:', JSON.stringify(text.substring(0, 100)));
+            console.log('innerHTML:', p.innerHTML.substring(0, 300));
+            break;
+          }
+        }
+      });
+  }
+
+  // 見出しテキストからpixta番号・余分なスタイルを除去
+  function cleanHeadingText(elem) {
+    let text = elem.innerText || elem.textContent || '';
+    text = text.replace(/[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+\s*[）)]/gi, '').trim();
+    return text;
+  }
+
+  // 段落をWordPress用HTMLに変換（リンク・太字等を保持、pixta番号を変換）
+  function cleanParagraph(elem) {
+    // Google Docsのインラインスタイルを除去しつつリンク・太字・イタリックは保持
+    let html = elem.innerHTML || '';
+    // デバッグ：字下げ行のinnerHTMLを確認
+    if (html.includes(' ') || html.includes('&nbsp;')) {
+      console.log('[cleanParagraph] innerHTML:', JSON.stringify(html.substring(0, 200)));
+    }
+    // Googleのコメントアンカー（[a],[b]など）を除去（<sup>ごと）
+    html = html.replace(/<sup[^>]*>\s*<a[^>]*href="#cmnt[^"]*"[^>]*>[^<]*<\/a>\s*<\/sup>/gi, '');
+    html = html.replace(/<a[^>]*id="cmnt[^"]*"[^>]*>[^<]*<\/a>/gi, '');
+    // 空のsupタグも除去
+    html = html.replace(/<sup[^>]*>\s*<\/sup>/gi, '');
+    // Googleのリダイレクトリンクを実際のURLに戻す
+    html = html.replace(/href="https?:\/\/www\.google\.com\/url\?[^"]*q=([^&"]+)[^"]*"/g, (_, url) => {
+      try { return `href="${decodeURIComponent(url)}"`; } catch { return `href="${url}"`; }
+    });
+    // Google DocsのHTMLではspanの中に&nbsp;が混在している
+    // elem.innerHTML上では既にブラウザが&nbsp;をU+00A0に変換済みのため
+    // innerHTML文字列内の&nbsp;とU+00A0の両方を処理する
+    html = html.split('&nbsp;').join('\u00a0');  // 文字列としての&nbsp;
+    html = html.replace(/[\u00a0\u0020]{2,}/g, m => '\u3000'.repeat(Math.max(1, Math.round(m.length / 2))));
+    html = html.replace(/[\u00a0]/g, '\u3000');
+    // スタイル属性・class属性・Google固有属性を除去
+    html = html.replace(/\s(style|class|id|dir|data-[a-z-]+)="[^"]*"/gi, '');
+    // spanタグは中身だけ残す
+    html = html.replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1');
+    // pixta番号を画像プレースホルダーに変換
+    html = html.replace(/[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)\s*[）)]/gi,
+      (_, num) => `<!--img:${num}-->`);
+    // テキストが空なら null
+    const text = (elem.innerText || elem.textContent || '').trim();
+    if (!text) return null;
+    return `<p>${html.trim()}</p>`;
+  }
+
+  // リストをWordPress用HTMLに変換
+  function cleanList(elem, tag) {
+    const items = Array.from(elem.querySelectorAll('li')).map(li => {
+      let html = li.innerHTML || '';
+      html = html.replace(/\s(style|class|id|dir|data-[a-z-]+)="[^"]*"/gi, '');
+      html = html.replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1');
+      return `<li>${html.trim()}</li>`;
+    });
+    return `<${tag}>\n${items.join('\n')}\n</${tag}>`;
+  }
+
+  // 表をWordPress用HTMLに変換（スタイルを除去して構造だけ保持）
+  function cleanTable(elem) {
+    let html = elem.outerHTML || '';
+    html = html.replace(/\s(style|class|id|dir|data-[a-z-]+|cellspacing|cellpadding|border|width|height)="[^"]*"/gi, '');
+    html = html.replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1');
+    // colgroup等は除去
+    html = html.replace(/<colgroup[\s\S]*?<\/colgroup>/gi, '');
+    return `<figure class="wp-block-table"><table>${html.replace(/^<table[^>]*>/, '').replace(/<\/table>$/, '')}</table></figure>`;
+  }
+
+  // ===== スプレッドシートURL取得 =====
+  async function loadSheet() {
+    const sheetId  = document.getElementById('sheetId').value.trim();
+    const sheetGid = document.getElementById('sheetGid').value.trim();
+    if (!sheetId) return;
+    const el = document.getElementById('sheetStatus');
+    el.style.display = 'block'; el.textContent = '📊 読み込み中...'; el.className = 'sheet-status';
+    try {
+      const res = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${sheetGid}`);
+      if (!res.ok) throw new Error('取得失敗（スプレッドシートを「リンクを知っている全員が閲覧可」に設定してください）');
+      sheetData = parseCSV(await res.text());
+      el.textContent = `✅ 読み込み完了（${sheetData.length} 行）`; el.className = 'sheet-status ok';
+    } catch(e) {
+      el.textContent = '❌ ' + e.message; el.className = 'sheet-status err';
+    }
+  }
+
+  function parseCSV(text) {
+    // RFC 4180準拠：クォート内の改行を正しく処理するパーサー
+    const rows = [];
+    let row = [], current = '', inQ = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const next = text[i + 1];
+      if (ch === '"') {
+        if (inQ && next === '"') { current += '"'; i++; } // エスケープされた"
+        else inQ = !inQ;
+      } else if (ch === ',' && !inQ) {
+        row.push(current); current = '';
+      } else if (ch === '\n' && !inQ) {
+        row.push(current); current = '';
+        if (row.some(c => c.trim())) rows.push(row); // 空行は除外
+        row = [];
+      } else if (ch === '\r') {
+        // \r\nの\rはスキップ
+      } else {
+        current += ch;
+      }
+    }
+    // 最終行
+    row.push(current);
+    if (row.some(c => c.trim())) rows.push(row);
+    return rows;
+  }
+
+  // ヘッダー行から列インデックスを検出
+  function detectColumns(headerRow) {
+    let descIdx = -1, canonicalIdx = -1, categoryIdx = -1;
+    headerRow.forEach((cell, i) => {
+      const c = cell.toLowerCase().replace(/[\s\n\r_]/g, '');
+      if (descIdx === -1 && (
+        c.includes('metadescription') || c.includes('metadesc') ||
+        c === 'description' || c === 'ディスクリプション' || c === 'desc'
+      )) descIdx = i;
+      if (canonicalIdx === -1 && (
+        c.includes('canonical') || c.includes('カノニカル') || c === 'url'
+      )) canonicalIdx = i;
+      if (categoryIdx === -1 && (
+        c === 'カテゴリ' || c === 'カテゴリー' || c === 'category' || c === 'categories'
+      )) categoryIdx = i;
+    });
+    return { descIdx, canonicalIdx, categoryIdx };
+  }
+
+  function matchSheetData(docUrl) {
+    if (!sheetData.length || !docUrl) return null;
+    const m = docUrl.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
+    const docId = m ? m[1] : '';
+
+    // 1行目をヘッダーとして列を自動検出
+    const { descIdx, canonicalIdx, categoryIdx } = detectColumns(sheetData[0]);
+
+    for (const row of sheetData) {
+      const rowStr = row.join(',');
+      if ((docId && rowStr.includes(docId)) || (docUrl && rowStr.includes(docUrl))) {
+        return {
+          description:  descIdx     >= 0 ? (row[descIdx]     || '').trim() : '',
+          canonicalUrl: canonicalIdx >= 0 ? (row[canonicalIdx] || '').trim() : '',
+          category:     categoryIdx  >= 0 ? (row[categoryIdx]  || '').trim() : '',
+        };
+      }
+    }
+    return null;
+  }
+
+  // ===== カテゴリー =====
+  async function loadCategories() {
+    const sel = document.getElementById('categorySelect');
+    try {
+      const res = await fetch(`${WP_URL}/wp-json/wp/v2/categories?per_page=100`, { headers: { 'Authorization': WP_AUTH } });
+      if (!res.ok) throw new Error();
+      const cats = await res.json();
+      sel.innerHTML = '<option value="">カテゴリーを選択...</option>';
+      cats.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id; opt.textContent = c.name;
+        if (c.name.includes('補助金')) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    } catch {
+      sel.innerHTML = '<option value="">手動入力</option>';
+      const inp = document.createElement('input');
+      inp.type='text'; inp.id='categoryId'; inp.placeholder='カテゴリーIDを入力'; inp.style.marginTop='8px';
+      sel.parentNode.appendChild(inp);
+    }
+  }
+
+  function reformatContent() {
+    const ta = document.getElementById('postContent');
+    ta.value = ta.value
+      .replace(/<o:p>.*?<\/o:p>/gi,'')
+      .replace(/<span[^>]*style="[^"]*"[^>]*>(.*?)<\/span>/gi,'$1')
+      .replace(/<h1([^>]*)>/gi,'<h2$1>').replace(/<\/h1>/gi,'</h2>')
+      .replace(/\n{3,}/g,'\n\n').replace(/ +/g,' ').trim();
+    alert('✅ 見出しタグを整形しました');
+  }
+
+  // ===== アイキャッチ =====
+  function handleFeaturedFile(e) { setFeatured(e.target.files[0]); }
+  function handleFeaturedDrop(e) { e.preventDefault(); document.getElementById('featuredZone').classList.remove('dragover'); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/')) setFeatured(f); }
+  function setFeatured(file) {
+    if (!file) return; featuredFile = file;
+    const r = new FileReader();
+    r.onload = ev => {
+      document.getElementById('featuredThumb').src = ev.target.result;
+      document.getElementById('featuredName').textContent = file.name;
+      document.getElementById('featuredSize').textContent = formatBytes(file.size);
+      document.getElementById('featuredPreview').classList.add('show');
+      document.getElementById('featuredZone').style.display = 'none';
+    };
+    r.readAsDataURL(file);
+  }
+  function clearFeatured() { featuredFile=null; document.getElementById('featuredPreview').classList.remove('show'); document.getElementById('featuredZone').style.display='block'; }
+
+  // ===== 本文内画像 =====
+  function addBodyImages(e) { Array.from(e.target.files).forEach(f=>{ if(f.type.startsWith('image/')) bodyImageFiles.push({file:f,name:f.name,mediaId:null}); }); renderBodyImages(); e.target.value=''; }
+  function renderBodyImages() {
+    const list=document.getElementById('bodyImagesList'); list.innerHTML='';
+    bodyImageFiles.forEach((item,i)=>{
+      const row=document.createElement('div'); row.className='body-img-row';
+      const img=document.createElement('img');
+      (function(f,im){ const r=new FileReader(); r.onload=ev=>im.src=ev.target.result; r.readAsDataURL(f); })(item.file,img);
+      const info=document.createElement('div'); info.className='bi-info';
+      const name=document.createElement('div'); name.className='bi-name'; name.textContent=item.name;
+      const status=document.createElement('div'); status.className='bi-status'; status.textContent='待機中'; status.id=`bi-status-${i}`;
+      info.appendChild(name); info.appendChild(status);
+      const del=document.createElement('button'); del.className='img-clear'; del.textContent='×'; del.onclick=()=>{ bodyImageFiles.splice(i,1); renderBodyImages(); };
+      row.appendChild(img); row.appendChild(info); row.appendChild(del); list.appendChild(row);
+    });
+  }
+
+  // ===== サマリー =====
+  function buildSummary() {
+    const title=document.getElementById('postTitle').value.trim();
+    const content=document.getElementById('postContent').value.trim();
+    const desc=document.getElementById('metaDesc').value.trim();
+    const catSel=document.getElementById('categorySelect');
+    const rows=[
+      ['タイトル', title ? title.substring(0,50)+(title.length>50?'…':'') : '⚠️ 未入力'],
+      ['本文文字数', content ? content.replace(/<[^>]+>/g,'').length+' 文字' : '⚠️ 未入力'],
+      ['ディスクリプション', desc ? desc.length+' 文字' : '未設定'],
+      ['カノニカルURL', document.getElementById('canonicalUrl').value||'未設定'],
+      ['カテゴリー', catSel.options[catSel.selectedIndex]?.text||'未設定'],
+      ['ステータス', document.getElementById('postStatus').value],
+      ['アイキャッチ', featuredFile ? featuredFile.name : '未設定'],
+      ['本文内画像', bodyImageFiles.length+' 枚'],
+    ];
+    document.getElementById('summary').innerHTML = rows.map(([k,v])=>`<div class="summary-row"><span class="summary-key">${k}</span><span class="summary-val">${v}</span></div>`).join('');
+  }
+
+  // ===== 投稿処理 =====
+  async function uploadImageToWP(file) {
+    const fd=new FormData(); fd.append('file',file,file.name);
+    const res=await fetch(`${WP_URL}/wp-json/wp/v2/media`,{method:'POST',headers:{'Authorization':WP_AUTH,'Content-Disposition':`attachment; filename="${file.name}"`},body:fd});
+    if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(`画像アップロード失敗 [${file.name}]: ${e.message||res.status}`); }
+    return await res.json();
+  }
+
+  function replaceImagePlaceholders(content, imageMap) {
+    return content.replace(/<!--img:([^>]+)-->/g, (match, fname) => {
+      const key = fname.trim();
+      // 完全一致で探す
+      if (imageMap[key]) {
+        return `\n<figure class="wp-block-image size-full"><img src="${imageMap[key].url}" alt="" /></figure>\n`;
+      }
+      // 部分一致で探す（素材番号だけのプレースホルダー対応）
+      const found = Object.keys(imageMap).find(k => k.includes(key) || key.includes(k.replace(/\.[^.]+$/, '').replace(/^pixta_/, '').replace(/_[A-Z]+$/, '')));
+      if (found) {
+        return `\n<figure class="wp-block-image size-full"><img src="${imageMap[found].url}" alt="" /></figure>\n`;
+      }
+      return match;
+    });
+  }
+
+  async function submitPost() {
+    const title=document.getElementById('postTitle').value.trim();
+    let content=document.getElementById('postContent').value.trim();
+    if (!title) return showStatus('⚠️ タイトルを入力してください。','error');
+    if (!content) return showStatus('⚠️ 本文を入力してください。','error');
+    setLoading(true); setProgress(5);
+    try {
+      // 本文内のプレースホルダーから必要な素材番号を抽出
+      const placeholders = [...content.matchAll(/<!--img:([^>]+)-->/g)].map(m => m[1].trim());
+      const imageMap = {};
+
+      if (placeholders.length > 0) {
+        showStatus(`🔍 メディアライブラリを検索中... (${placeholders.length} 件)`, 'loading');
+      }
+
+      for (const num of placeholders) {
+        // ① まずWordPressのメディアライブラリを検索
+        const res = await fetch(
+          `${WP_URL}/wp-json/wp/v2/media?search=${encodeURIComponent(num)}&per_page=10`,
+          { headers: { 'Authorization': WP_AUTH } }
+        );
+        if (res.ok) {
+          const items = await res.json();
+          const found = items.find(m => m.source_url && m.source_url.includes(num));
+          if (found) {
+            imageMap[num] = { id: found.id, url: found.source_url };
+            continue; // WordPressに見つかったのでアップロード不要
+          }
+        }
+
+        // ② WordPressになければツール内の画像を探してアップロード
+        const localFile = bodyImageFiles.find(f =>
+          f.name.includes(num) || num.includes(f.name.replace(/\.[^.]+$/, '').replace(/^pixta_/, '').replace(/_[A-Z]+$/, ''))
+        );
+        if (localFile) {
+          showStatus(`🖼 画像をアップロード中: ${localFile.name}`, 'loading');
+          const media = await uploadImageToWP(localFile.file);
+          imageMap[num] = { id: media.id, url: media.source_url };
+          // ステータス表示を更新
+          const idx = bodyImageFiles.indexOf(localFile);
+          const el = document.getElementById(`bi-status-${idx}`);
+          if (el) { el.textContent = '✅ 完了'; el.className = 'bi-status uploaded'; }
+          continue;
+        }
+
+        // ③ どこにもなければエラー
+        throw new Error(`画像が見つかりません: ${num}\n・WordPressのメディアライブラリにアップロードする\n・またはツール内に画像を追加してください。`);
+      }
+
+      content = replaceImagePlaceholders(content, imageMap);
+
+      let featuredMediaId = null;
+      if (featuredFile) {
+        showStatus('🖼 アイキャッチ画像をアップロード中...', 'loading');
+        featuredMediaId = (await uploadImageToWP(featuredFile)).id;
+      } else if (placeholders.length === 0 && !featuredFile) {
+        // アイキャッチ未設定の場合はそのまま続行
+      }
+      setProgress(55);
+
+      const catSel=document.getElementById('categorySelect'); const catIdEl=document.getElementById('categoryId');
+      const catVal=catSel?.value||catIdEl?.value; const categoryIds=(catVal&&!isNaN(catVal))?[parseInt(catVal)]:[];
+      showStatus('📤 投稿データを送信中...','loading'); setProgress(65);
+
+      const postData={title,content,status:document.getElementById('postStatus').value,categories:categoryIds};
+      if (featuredMediaId) postData.featured_media=featuredMediaId;
+
+      const res=await fetch(`${WP_URL}/wp-json/wp/v2/posts`,{method:'POST',headers:{'Authorization':WP_AUTH,'Content-Type':'application/json'},body:JSON.stringify(postData)});
+      setProgress(82);
+      if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(`HTTP ${res.status}: ${e.message||'不明なエラー'}`); }
+      const post=await res.json();
+
+      showStatus('⚙️ SEOメタ情報を設定中...','loading');
+      await updateSeoMeta(post.id); setProgress(100);
+
+      showStatus(`✅ 投稿完了！\n\n投稿ID：${post.id}\nステータス：${post.status}\nアイキャッチ：${featuredMediaId?'設定済み ✅':'未設定'}\n本文内画像：${Object.keys(imageMap).length} 枚挿入`,'success');
+      document.getElementById('postLinkUrl').href=post.link;
+      document.getElementById('editLinkUrl').href=`${WP_URL}/wp-admin/post.php?post=${post.id}&action=edit`;
+      document.getElementById('postLink').style.display='block';
+    } catch(e) { setProgress(0); showStatus('❌ エラー：\n'+e.message,'error'); }
+    finally { setLoading(false); }
+  }
+
+  async function updateSeoMeta(postId) {
+    const desc      = document.getElementById('metaDesc').value.trim();
+    const seoTitle  = document.getElementById('seoTitle').value.trim() || document.getElementById('postTitle').value.trim();
+    const canonical = document.getElementById('canonicalUrl').value.trim();
+    const noindex   = !document.getElementById('robotsIndex').checked;
+    const nofollow  = !document.getElementById('robotsFollow').checked;
+
+    const meta = {};
+
+    // SEO SIMPLE PACK
+    if (desc)      meta['seo_description'] = desc;
+    if (seoTitle)  meta['seo_title']       = seoTitle;
+    if (canonical) meta['seo_canonical']   = canonical;
+    // seo_noindex: 0=デフォルト 1=インデックスさせる 2=noindex 5=noindex,nofollow
+    if (noindex && nofollow) {
+      meta['seo_noindex'] = '5'; // noindex,nofollow
+    } else if (noindex) {
+      meta['seo_noindex'] = '2'; // noindex
+    } else if (nofollow) {
+      meta['seo_noindex'] = '3'; // nofollow
+    } else {
+      meta['seo_noindex'] = '1'; // インデックスさせる
+    }
+
+    // Yoast SEO（併用環境向け）
+    if (desc)      meta['_yoast_wpseo_metadesc']  = desc;
+    if (seoTitle)  meta['_yoast_wpseo_title']      = seoTitle;
+    if (canonical) meta['_yoast_wpseo_canonical']  = canonical;
+    meta['_yoast_wpseo_meta-robots-noindex']  = noindex  ? '1' : '0';
+    meta['_yoast_wpseo_meta-robots-nofollow'] = nofollow ? '1' : '0';
+
+    // RankMath（併用環境向け）
+    if (desc)      meta['rank_math_description']  = desc;
+    if (seoTitle)  meta['rank_math_title']         = seoTitle;
+    if (canonical) meta['rank_math_canonical_url'] = canonical;
+
+    try {
+      await fetch(`${WP_URL}/wp-json/wp/v2/posts/${postId}`, {
+        method: 'POST',
+        headers: { 'Authorization': WP_AUTH, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meta }),
+      });
+    } catch(e) { console.warn('SEOメタ設定エラー:', e); }
+  }
+
+  function showStatus(msg,type){const el=document.getElementById('statusBox');el.textContent=msg;el.className=`status-box show ${type}`;}
+  function showGdocStatus(msg,type){const el=document.getElementById('gdocStatus');el.textContent=msg;el.className=`status-box show ${type}`;}
+  function setLoading(on){document.getElementById('submitBtn').disabled=on;document.getElementById('spinner').style.display=on?'block':'none';document.getElementById('submitLabel').textContent=on?'処理中...':'🚀 WordPressに投稿する';document.getElementById('progressBar').className=on?'progress-bar show':'progress-bar';}
+  function setProgress(pct){document.getElementById('progressFill').style.width=pct+'%';}
+  function updateCharCount(){const len=document.getElementById('metaDesc').value.length;const el=document.getElementById('descCount');el.textContent=len+' 文字';el.className='char-count '+(len>160?'over':len>=80?'good':'');}
+  function updateSeoTitleCount(){const len=document.getElementById('seoTitle').value.length;const el=document.getElementById('seoTitleCount');el.textContent=len+' 文字';el.className='char-count '+(len>60?'over':len>=30?'good':'');}
+  function updateCanonicalPreview(){document.getElementById('canonicalPreview').textContent=document.getElementById('canonicalUrl').value||'未設定';}
+  function formatBytes(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(1)+' MB';}
+</script>
+</body>
+</html>
