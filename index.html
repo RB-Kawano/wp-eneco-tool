@@ -671,13 +671,11 @@
     // elem.innerHTML上では既にブラウザが&nbsp;をU+00A0に変換済みのため
     // innerHTML文字列内の&nbsp;とU+00A0の両方を処理する
     html = html.split('&nbsp;').join('\u00a0');  // 文字列としての&nbsp;
-    // U+00A0と半角スペースの連続を全角スペースに変換（タグの外側のみ）
-    html = html.replace(/(<[^>]*>)|([\u00a0\u0020]+)/g, (match, tag, spaces) => {
+    // U+00A0（&nbsp;由来）のみを全角スペースに変換（通常の半角スペースはそのまま保持）
+    html = html.replace(/(<[^>]*>)|(\u00a0+)/g, (match, tag, spaces) => {
       if (tag) return tag;  // タグ内はそのまま
-      return '\u3000'.repeat(spaces.length);  // タグ外のスペースを全角に
+      return '\u3000'.repeat(spaces.length);  // U+00A0のみ全角に変換
     });
-    // 過剰な全角スペースを防ぐため最大10個に制限
-    html = html.replace(/\u3000{11,}/g, '\u3000'.repeat(10));
     // スタイル属性・class属性・Google固有属性を除去
     html = html.replace(/\s(style|class|id|dir|data-[a-z-]+)="[^"]*"/gi, '');
     // spanタグは中身だけ残す
