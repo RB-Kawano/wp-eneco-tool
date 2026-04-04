@@ -521,7 +521,7 @@
       }
     }
 
-    titleText = titleText.trim();
+    titleText = titleText.replace(/^H1[：:＊*]?\s*/i, '').trim();
 
     // ===== 本文抽出 =====
     // タイトル要素より前の要素（メモ行）と、タイトル自体を除外
@@ -634,6 +634,8 @@
   // 見出しテキストからpixta番号・余分なスタイルを除去
   function cleanHeadingText(elem) {
     let text = elem.innerText || elem.textContent || '';
+    // H1:・H2:・H3:・H4: などの手書きタグを除去
+    text = text.replace(/^H[1-6][：:＊*]?\s*/i, '');
     text = text.replace(/[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+\s*[）)]/gi, '').trim();
     return text;
   }
