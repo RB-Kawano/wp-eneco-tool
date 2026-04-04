@@ -507,7 +507,10 @@
 
     // ===== タイトル抽出 =====
     // H1より前のメモ段落（◆●など）を除去してタイトルを探す
-    const allElems = Array.from(body.querySelectorAll('h1,h2,h3,h4,h5,h6,p,table,ul,ol'));
+    // table内の要素は除外（tableごと処理するため）
+    const allElems = Array.from(body.querySelectorAll('h1,h2,h3,h4,h5,h6,p,table,ul,ol')).filter(el => {
+      return !el.closest('table') || el.tagName.toLowerCase() === 'table';
+    });
     let titleText = '';
     let titleElem = null;
 
