@@ -1014,7 +1014,7 @@
       showStatus('📤 投稿データを送信中...','loading'); setProgress(65);
 
       const slug = document.getElementById('postSlug').value.trim();
-      const postData={title,content,status:document.getElementById('postStatus').value,categories:categoryIds};
+      const postData={title,content,status:document.getElementById('postStatus').value,categories:categoryIds,content_filtering:'blocks'};
       if (slug) postData.slug = slug;
       if (featuredMediaId) postData.featured_media=featuredMediaId;
 
