@@ -162,6 +162,8 @@
   .csv-sub{font-size:11px;color:var(--text-dim);margin-top:2px}
   .csv-loaded{background:var(--success-light);border-color:#bbf7d0}
   .csv-loaded .csv-text{color:var(--success)}
+
+
 </style>
 </head>
 <body>
@@ -189,6 +191,7 @@
         <button class="pw-toggle" onclick="togglePw()" tabindex="-1">👁</button>
       </div>
     </div>
+
     <div id="loginStatus" class="status-box" style="margin-bottom:14px"></div>
     <button class="btn btn-primary" onclick="doLogin()">
       <span class="spinner" id="loginSpinner"></span>
@@ -247,11 +250,11 @@
         <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">ディスクリプション（C列）・カノニカルURL（R列）をGoogleドキュメントURLをキーに自動取得します。<br>※スプレッドシートは「リンクを知っている全員が閲覧可」に設定してください。</p>
         <div class="form-group">
           <label>スプレッドシートID</label>
-          <input type="text" id="sheetId" value="15mqZj7mWX-dekihYE_pNfjDgi1i4-g3WMs6qBmqd21Y" />
+          <input type="text" id="sheetId" placeholder="URLの /d/ と /edit の間の文字列" />
         </div>
         <div class="form-group">
           <label>シートID（gid）</label>
-          <input type="text" id="sheetGid" value="26357450" />
+          <input type="text" id="sheetGid" placeholder="URLの gid= の後の数字" />
         </div>
         <button class="btn btn-secondary btn-sm" onclick="loadSheet()">📊 再読み込み</button>
         <div id="sheetStatus" class="sheet-status" style="display:none;margin-top:8px"></div>
@@ -426,6 +429,7 @@
       document.getElementById('loggedInUser').textContent = me.name || user;
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('appScreen').style.display = 'block';
+
       loadCategories();
       loadSheet();
     } catch(e) { showLoginStatus('❌ ' + e.message, 'error'); }
@@ -669,7 +673,7 @@
     // Google Docsのインラインスタイルを除去しつつリンク・太字・イタリックは保持
     let html = elem.innerHTML || '';
     // デバッグ：字下げ行のinnerHTMLを確認
-    if (html.includes(' ') || html.includes('&nbsp;')) {
+    if (html.includes(' ') || html.includes('&nbsp;')) {
       console.log('[cleanParagraph] innerHTML before:', JSON.stringify(html.substring(0, 200)));
     }
     // Googleのコメントアンカー（[a],[b]など）を除去（<sup>ごと）
