@@ -162,8 +162,6 @@
   .csv-sub{font-size:11px;color:var(--text-dim);margin-top:2px}
   .csv-loaded{background:var(--success-light);border-color:#bbf7d0}
   .csv-loaded .csv-text{color:var(--success)}
-
-
 </style>
 </head>
 <body>
@@ -191,7 +189,6 @@
         <button class="pw-toggle" onclick="togglePw()" tabindex="-1">👁</button>
       </div>
     </div>
-
     <div id="loginStatus" class="status-box" style="margin-bottom:14px"></div>
     <button class="btn btn-primary" onclick="doLogin()">
       <span class="spinner" id="loginSpinner"></span>
@@ -250,11 +247,11 @@
         <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">ディスクリプション（C列）・カノニカルURL（R列）をGoogleドキュメントURLをキーに自動取得します。<br>※スプレッドシートは「リンクを知っている全員が閲覧可」に設定してください。</p>
         <div class="form-group">
           <label>スプレッドシートID</label>
-          <input type="text" id="sheetId" placeholder="URLの /d/ と /edit の間の文字列" />
+          <input type="text" id="sheetId" value="15mqZj7mWX-dekihYE_pNfjDgi1i4-g3WMs6qBmqd21Y" />
         </div>
         <div class="form-group">
           <label>シートID（gid）</label>
-          <input type="text" id="sheetGid" placeholder="URLの gid= の後の数字" />
+          <input type="text" id="sheetGid" value="26357450" />
         </div>
         <button class="btn btn-secondary btn-sm" onclick="loadSheet()">📊 再読み込み</button>
         <div id="sheetStatus" class="sheet-status" style="display:none;margin-top:8px"></div>
@@ -429,7 +426,6 @@
       document.getElementById('loggedInUser').textContent = me.name || user;
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('appScreen').style.display = 'block';
-
       loadCategories();
       loadSheet();
     } catch(e) { showLoginStatus('❌ ' + e.message, 'error'); }
@@ -673,7 +669,7 @@
     // Google Docsのインラインスタイルを除去しつつリンク・太字・イタリックは保持
     let html = elem.innerHTML || '';
     // デバッグ：字下げ行のinnerHTMLを確認
-    if (html.includes(' ') || html.includes('&nbsp;')) {
+    if (html.includes(' ') || html.includes('&nbsp;')) {
       console.log('[cleanParagraph] innerHTML before:', JSON.stringify(html.substring(0, 200)));
     }
     // Googleのコメントアンカー（[a],[b]など）を除去（<sup>ごと）
@@ -727,7 +723,21 @@
     html = html.replace(/<colgroup[\s\S]*?<\/colgroup>/gi, '');
     // td/th内のpタグを除去（中身は保持）
     html = html.replace(/<(td|th)([^>]*)>\s*<p>([\s\S]*?)<\/p>\s*<\/(td|th)>/gi, '<$1$2>$3</$4>');
-    return `<figure class="wp-block-table"><table>${html.replace(/^<table[^>]*>/, '').replace(/<\/table>$/, '')}</table></figure>`;
+    // tableタグの中身を抽出
+    let inner = html.replace(/^<table[^>]*>/, '').replace(/<\/table>$/, '');
+    // 既存のthead/tbodyを除去（あとで再構築する）
+    inner = inner.replace(/<\/?thead[^>]*>/gi, '').replace(/<\/?tbody[^>]*>/gi, '');
+    // trを抽出
+    const trMatches = inner.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+    if (trMatches.length === 0) {
+      return `<figure class="wp-block-table"><table class="has-fixed-layout">${inner}</table></figure>`;
+    }
+    // 1行目をtheadに、それ以外をtbodyに
+    const firstRow = trMatches[0].replace(/<td([^>]*)>/gi, '<th$1>').replace(/<\/td>/gi, '</th>');
+    const restRows = trMatches.slice(1).join('');
+    const tableInner = `<thead>${firstRow}</thead><tbody>${restRows}</tbody>`;
+    // WordPressブロックコメントで囲む（テーブルブロックとして認識される）
+    return `<!-- wp:table {"hasFixedLayout":true} -->\n<figure class="wp-block-table"><table class="has-fixed-layout">${tableInner}</table></figure>\n<!-- /wp:table -->`;
   }
 
   // ===== スプレッドシートURL取得 =====
@@ -735,6 +745,8 @@
     const sheetId  = document.getElementById('sheetId').value.trim();
     const sheetGid = document.getElementById('sheetGid').value.trim();
     if (!sheetId) return;
+    // localStorageに保存
+    try { localStorage.setItem('wpTool_sheetId', sheetId); localStorage.setItem('wpTool_sheetGid', sheetGid); } catch(e){}
     const el = document.getElementById('sheetStatus');
     el.style.display = 'block'; el.textContent = '📊 読み込み中...'; el.className = 'sheet-status';
     try {
@@ -1091,6 +1103,16 @@
   function updateSeoTitleCount(){const len=document.getElementById('seoTitle').value.length;const el=document.getElementById('seoTitleCount');el.textContent=len+' 文字';el.className='char-count '+(len>60?'over':len>=30?'good':'');}
   function updateCanonicalPreview(){document.getElementById('canonicalPreview').textContent=document.getElementById('canonicalUrl').value||'未設定';}
   function formatBytes(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(1)+' MB';}
+
+  // ===== 初期化（ページ読み込み時にlocalStorageから値を復元） =====
+  (function initFromStorage(){
+    try {
+      const savedId = localStorage.getItem('wpTool_sheetId');
+      const savedGid = localStorage.getItem('wpTool_sheetGid');
+      if (savedId) document.getElementById('sheetId').value = savedId;
+      if (savedGid) document.getElementById('sheetGid').value = savedGid;
+    } catch(e){}
+  })();
 </script>
 </body>
 </html>
