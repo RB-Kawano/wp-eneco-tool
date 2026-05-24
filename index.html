@@ -468,8 +468,8 @@
   }
 
   // ===== ドキュメントテキスト解析 =====
-  // pixta素材番号にマッチする正規表現
-  const PIXTA_RE = /[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+\s*[）)]/gi;
+  // pixta素材番号にマッチする正規表現（altテキスト付きにも対応）
+  const PIXTA_RE = /[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+(?:[\s　]+alt(?:テキスト)?\s*[：:＊*]?\s*[^）)]*)?\s*[）)]/gi;
 
   async function fetchGDoc() {
     const url = document.getElementById('gdocUrl').value.trim();
@@ -545,15 +545,17 @@
 
       const text = (elem.innerText || elem.textContent || '').trim();
 
-      // pixta素材番号の処理
-      const pixtaMatch = text.match(/^[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)\s*[）)]\s*$/i);
+      // pixta素材番号の処理（altテキストにも対応）
+      const pixtaMatch = text.match(/^[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:[\s　]+alt(?:テキスト)?\s*[：:＊*]?\s*([^）)]*?))?\s*[）)]\s*$/i);
       if (pixtaMatch) {
+        const num = pixtaMatch[1];
+        const alt = (pixtaMatch[2] || '').trim();
         if (skipNextPixta) {
           skipNextPixta = false;
-          featuredPixtaNum = pixtaMatch[1]; // アイキャッチ用として番号を保持
+          featuredPixtaNum = num; // アイキャッチ用として番号を保持
           continue;
         }
-        bodyHtml += `<!--img:${pixtaMatch[1]}-->\n`;
+        bodyHtml += alt ? `<!--img:${num}|${alt}-->\n` : `<!--img:${num}-->\n`;
         continue;
       }
       skipNextPixta = false;
@@ -660,7 +662,7 @@
     let text = elem.innerText || elem.textContent || '';
     // H1:・H2:・H3:・H4: などの手書きタグを除去
     text = text.replace(/^H[1-6][：:＊*]?\s*/i, '');
-    text = text.replace(/[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+\s*[）)]/gi, '').trim();
+    text = text.replace(/[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+(?:[\s　]+alt(?:テキスト)?\s*[：:＊*]?\s*[^）)]*)?\s*[）)]/gi, '').trim();
     return text;
   }
 
@@ -694,9 +696,12 @@
     html = html.replace(/\s(style|class|id|dir|data-[a-z-]+)="[^"]*"/gi, '');
     // spanタグは中身だけ残す
     html = html.replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1');
-    // pixta番号を画像プレースホルダーに変換
-    html = html.replace(/[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)\s*[）)]/gi,
-      (_, num) => `<!--img:${num}-->`);
+    // pixta番号を画像プレースホルダーに変換（altテキストにも対応）
+    html = html.replace(/[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:[\s　]+alt(?:テキスト)?\s*[：:＊*]?\s*([^）)]*?))?\s*[）)]/gi,
+      (_, num, alt) => {
+        const altText = (alt || '').trim();
+        return altText ? `<!--img:${num}|${altText}-->` : `<!--img:${num}-->`;
+      });
     // テキストが空なら null
     const text = (elem.innerText || elem.textContent || '').trim();
     if (!text) return null;
@@ -926,16 +931,20 @@
   }
 
   function replaceImagePlaceholders(content, imageMap) {
-    return content.replace(/<!--img:([^>]+)-->/g, (match, fname) => {
-      const key = fname.trim();
+    return content.replace(/<!--img:([^>]+)-->/g, (match, content) => {
+      // 「番号|altテキスト」形式を分離
+      const parts = content.split('|');
+      const key = parts[0].trim();
+      const altText = (parts[1] || '').trim();
+      const altAttr = altText.replace(/"/g, '&quot;');
       // 完全一致で探す
       if (imageMap[key]) {
-        return `\n<figure class="wp-block-image size-full"><img src="${imageMap[key].url}" alt="" /></figure>\n`;
+        return `\n<figure class="wp-block-image size-full"><img src="${imageMap[key].url}" alt="${altAttr}" /></figure>\n`;
       }
       // 部分一致で探す（素材番号だけのプレースホルダー対応）
       const found = Object.keys(imageMap).find(k => k.includes(key) || key.includes(k.replace(/\.[^.]+$/, '').replace(/^pixta_/, '').replace(/_[A-Z]+$/, '')));
       if (found) {
-        return `\n<figure class="wp-block-image size-full"><img src="${imageMap[found].url}" alt="" /></figure>\n`;
+        return `\n<figure class="wp-block-image size-full"><img src="${imageMap[found].url}" alt="${altAttr}" /></figure>\n`;
       }
       return match;
     });
@@ -948,8 +957,10 @@
     if (!content) return showStatus('⚠️ 本文を入力してください。','error');
     setLoading(true); setProgress(5);
     try {
-      // 本文内のプレースホルダーから必要な素材番号を抽出
-      const placeholders = [...content.matchAll(/<!--img:([^>]+)-->/g)].map(m => m[1].trim());
+      // 本文内のプレースホルダーから必要な素材番号を抽出（番号部分のみ・重複排除）
+      const placeholders = [...new Set(
+        [...content.matchAll(/<!--img:([^>]+)-->/g)].map(m => m[1].trim().split('|')[0].trim())
+      )];
       const imageMap = {};
 
       if (placeholders.length > 0) {
