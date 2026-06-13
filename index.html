@@ -568,23 +568,33 @@
       if (tag === 'h2') {
         // H2: pixta番号とタグを除去してテキストだけ取り出す
         const h2text = cleanHeadingText(elem);
-        bodyHtml += `<h2>${h2text}</h2>\n`;
+        bodyHtml += `<!-- wp:heading -->\n<h2 class="wp-block-heading">${h2text}</h2>\n<!-- /wp:heading -->\n`;
       } else if (tag === 'h3') {
         const h3text = cleanHeadingText(elem);
-        bodyHtml += `<h3>${h3text}</h3>\n`;
+        bodyHtml += `<!-- wp:heading {"level":3} -->\n<h3 class="wp-block-heading">${h3text}</h3>\n<!-- /wp:heading -->\n`;
       } else if (tag === 'h4') {
         const h4text = cleanHeadingText(elem);
-        bodyHtml += `<h4>${h4text}</h4>\n`;
+        bodyHtml += `<!-- wp:heading {"level":4} -->\n<h4 class="wp-block-heading">${h4text}</h4>\n<!-- /wp:heading -->\n`;
       } else if (tag === 'table') {
         // 表：そのまま保持（Google Docsのスタイルは除去）
         console.log('[table] 表を検出:', elem.rows?.length, '行');
         bodyHtml += cleanTable(elem) + '\n';
       } else if (tag === 'ul' || tag === 'ol') {
-        bodyHtml += cleanList(elem, tag) + '\n';
+        const listHtml = cleanList(elem, tag);
+        const blockName = tag === 'ol' ? 'list {"ordered":true}' : 'list';
+        bodyHtml += `<!-- wp:${blockName} -->\n${listHtml}\n<!-- /wp:list -->\n`;
       } else if (tag === 'p') {
         // 段落内のpixta番号を画像プレースホルダーに変換
         const pHtml = cleanParagraph(elem);
-        if (pHtml) bodyHtml += `${pHtml}\n`;
+        if (pHtml) {
+          // pixtaプレースホルダーのみの段落は後で画像ブロックに置換されるので、そのまま追加
+          // 通常の段落はwp:paragraphで囲む
+          if (/^<p><!--img:[^>]+--><\/p>$/.test(pHtml.trim())) {
+            bodyHtml += `${pHtml}\n`;
+          } else {
+            bodyHtml += `<!-- wp:paragraph -->\n${pHtml}\n<!-- /wp:paragraph -->\n`;
+          }
+        }
       }
     }
 
@@ -714,7 +724,7 @@
       let html = li.innerHTML || '';
       html = html.replace(/\s(style|class|id|dir|data-[a-z-]+)="[^"]*"/gi, '');
       html = html.replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1');
-      return `<li>${html.trim()}</li>`;
+      return `<!-- wp:list-item -->\n<li>${html.trim()}</li>\n<!-- /wp:list-item -->`;
     });
     return `<${tag}>\n${items.join('\n')}\n</${tag}>`;
   }
@@ -726,21 +736,39 @@
     html = html.replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1');
     // colgroup等は除去
     html = html.replace(/<colgroup[\s\S]*?<\/colgroup>/gi, '');
-    // td/th内のpタグを除去（中身は保持）
-    html = html.replace(/<(td|th)([^>]*)>\s*<p>([\s\S]*?)<\/p>\s*<\/(td|th)>/gi, '<$1$2>$3</$4>');
+    // td/th内の処理：複数の<p>を改行<br>で繋ぎ、空の<p>は除去
+    html = html.replace(/<(td|th)([^>]*)>([\s\S]*?)<\/(td|th)>/gi, (m, tag, attrs, inner, closeTag) => {
+      // 空の<p>や<p>&nbsp;</p>を除去
+      inner = inner.replace(/<p[^>]*>\s*(?:&nbsp;|\u00a0|\s)*\s*<\/p>/gi, '');
+      // 残った<p>...</p>を中身だけ取り出し、複数あれば<br>で連結
+      const paragraphs = [];
+      const pRe = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+      let match;
+      let hasP = false;
+      while ((match = pRe.exec(inner)) !== null) {
+        hasP = true;
+        const text = match[1].trim();
+        if (text) paragraphs.push(text);
+      }
+      if (hasP) {
+        inner = paragraphs.join('<br>');
+      } else {
+        // <p>がない場合はそのまま（テキストノードのケース）
+        inner = inner.trim();
+      }
+      return `<${tag}${attrs}>${inner}</${closeTag}>`;
+    });
     // tableタグの中身を抽出
     let inner = html.replace(/^<table[^>]*>/, '').replace(/<\/table>$/, '');
-    // 既存のthead/tbodyを除去（あとで再構築する）
+    // 既存のthead/tbodyを除去（再構築する）
     inner = inner.replace(/<\/?thead[^>]*>/gi, '').replace(/<\/?tbody[^>]*>/gi, '');
     // trを抽出
     const trMatches = inner.match(/<tr[\s\S]*?<\/tr>/gi) || [];
     if (trMatches.length === 0) {
-      return `<figure class="wp-block-table"><table class="has-fixed-layout">${inner}</table></figure>`;
+      return `<!-- wp:table {"hasFixedLayout":true} -->\n<figure class="wp-block-table"><table class="has-fixed-layout">${inner}</table></figure>\n<!-- /wp:table -->`;
     }
-    // 1行目をtheadに、それ以外をtbodyに
-    const firstRow = trMatches[0].replace(/<td([^>]*)>/gi, '<th$1>').replace(/<\/td>/gi, '</th>');
-    const restRows = trMatches.slice(1).join('');
-    const tableInner = `<thead>${firstRow}</thead><tbody>${restRows}</tbody>`;
+    // 全行をtbodyに（ヘッダー指定はWordPress側で手動設定）
+    const tableInner = `<tbody>${trMatches.join('')}</tbody>`;
     // WordPressブロックコメントで囲む（テーブルブロックとして認識される）
     return `<!-- wp:table {"hasFixedLayout":true} -->\n<figure class="wp-block-table"><table class="has-fixed-layout">${tableInner}</table></figure>\n<!-- /wp:table -->`;
   }
@@ -931,20 +959,22 @@
   }
 
   function replaceImagePlaceholders(content, imageMap) {
-    return content.replace(/<!--img:([^>]+)-->/g, (match, content) => {
+    // <p><!--img:...--></p> または <!--img:...--> 単独 を画像ブロックに置換
+    return content.replace(/(?:<p>\s*)?<!--img:([^>]+)-->(?:\s*<\/p>)?/g, (match, content) => {
       // 「番号|altテキスト」形式を分離
       const parts = content.split('|');
       const key = parts[0].trim();
       const altText = (parts[1] || '').trim();
       const altAttr = altText.replace(/"/g, '&quot;');
+      const buildBlock = (url) => `\n<!-- wp:image -->\n<figure class="wp-block-image size-full"><img src="${url}" alt="${altAttr}" /></figure>\n<!-- /wp:image -->\n`;
       // 完全一致で探す
       if (imageMap[key]) {
-        return `\n<figure class="wp-block-image size-full"><img src="${imageMap[key].url}" alt="${altAttr}" /></figure>\n`;
+        return buildBlock(imageMap[key].url);
       }
       // 部分一致で探す（素材番号だけのプレースホルダー対応）
       const found = Object.keys(imageMap).find(k => k.includes(key) || key.includes(k.replace(/\.[^.]+$/, '').replace(/^pixta_/, '').replace(/_[A-Z]+$/, '')));
       if (found) {
-        return `\n<figure class="wp-block-image size-full"><img src="${imageMap[found].url}" alt="${altAttr}" /></figure>\n`;
+        return buildBlock(imageMap[found].url);
       }
       return match;
     });
