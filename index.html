@@ -279,6 +279,7 @@
           <div class="card">
             <div class="card-title"><span class="dot"></span>本文内 画像</div>
             <p style="font-size:11px;color:var(--text-muted);margin-bottom:12px">本文中の挿入位置に <code>&lt;!--img:ファイル名--&gt;</code> と書いておくと自動で差し込まれます。</p>
+            <div id="bodyImagesStatus" style="display:none;font-size:11px;border-radius:6px;padding:8px 10px;margin-bottom:12px;line-height:1.6;"></div>
             <div class="body-images-list" id="bodyImagesList"></div>
             <label class="add-body-img-btn">
               ＋ 画像を追加
@@ -314,6 +315,7 @@
               <div class="upload-sub">JPG / PNG / WebP</div>
             </div>
             <div id="featuredPixtaHint" style="display:none;font-size:11px;color:#2563eb;background:#eff4ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 10px;margin-top:8px;"></div>
+            <div id="featuredStatus" style="display:none;font-size:11px;border-radius:6px;padding:8px 10px;margin-top:8px;line-height:1.6;"></div>
         <div class="image-preview-wrap" id="featuredPreview">
               <img id="featuredThumb" src="" alt="">
               <div class="img-info">
@@ -464,12 +466,101 @@
 
   // ===== ステップ =====
   function goStep(n) {
+    if (n === 2) checkImageAvailability();
     if (n === 3) buildSummary();
     [1,2,3].forEach(i => {
       document.getElementById(`panel-${i}`).classList.toggle('active', i === n);
       document.getElementById(`step-tab-${i}`).classList.toggle('active', i === n);
       if (i < n) document.getElementById(`step-tab-${i}`).classList.add('done');
     });
+  }
+
+  // ===== WordPress内に画像があるかチェック =====
+  async function checkImageAvailability() {
+    const content = document.getElementById('postContent').value || '';
+    const featuredEl = document.getElementById('featuredStatus');
+    const bodyEl = document.getElementById('bodyImagesStatus');
+
+    // ログイン前は実行しない
+    if (!WP_AUTH) return;
+
+    // ----- 本文内画像チェック -----
+    const placeholders = [...new Set(
+      [...content.matchAll(/<!--img:([^>]+)-->/g)].map(m => m[1].trim().split('|')[0].trim())
+    )];
+
+    if (placeholders.length === 0) {
+      bodyEl.style.display = 'none';
+    } else {
+      bodyEl.style.display = 'block';
+      bodyEl.style.background = '#f3f4f6';
+      bodyEl.style.border = '1px solid #d1d5db';
+      bodyEl.style.color = '#374151';
+      bodyEl.innerHTML = `🔍 WordPress内の画像を確認中... (${placeholders.length}件)`;
+
+      const results = { found: [], missing: [] };
+      for (const num of placeholders) {
+        try {
+          const res = await fetch(
+            `${WP_URL}/wp-json/wp/v2/media?search=${encodeURIComponent(num)}&per_page=10`,
+            { headers: { 'Authorization': WP_AUTH } }
+          );
+          if (res.ok) {
+            const items = await res.json();
+            const found = items.find(m => m.source_url && m.source_url.includes(num));
+            if (found) { results.found.push(num); continue; }
+          }
+        } catch(e){}
+        results.missing.push(num);
+      }
+
+      if (results.missing.length === 0) {
+        bodyEl.style.background = '#ecfdf5';
+        bodyEl.style.border = '1px solid #a7f3d0';
+        bodyEl.style.color = '#065f46';
+        bodyEl.innerHTML = `✅ すべての画像（${results.found.length}件）がWordPress内にあります。<br>追加のアップロードは不要です。`;
+      } else {
+        bodyEl.style.background = '#fffbeb';
+        bodyEl.style.border = '1px solid #fde68a';
+        bodyEl.style.color = '#92400e';
+        const missingList = results.missing.map(n => `<code style="background:#fef3c7;padding:1px 5px;border-radius:3px;">${n}</code>`).join(' ');
+        bodyEl.innerHTML = `⚠️ WordPress内にない画像：${results.missing.length}件<br>${missingList}<br><span style="font-size:10px;">↑これらをPixtaからダウンロードして、下から追加してください。<br>✅ WordPress内にある画像：${results.found.length}件（追加不要）</span>`;
+      }
+    }
+
+    // ----- アイキャッチチェック -----
+    const featuredNum = window._featuredPixtaNum;
+    if (!featuredNum) {
+      featuredEl.style.display = 'none';
+    } else {
+      featuredEl.style.display = 'block';
+      featuredEl.style.background = '#f3f4f6';
+      featuredEl.style.border = '1px solid #d1d5db';
+      featuredEl.style.color = '#374151';
+      featuredEl.innerHTML = `🔍 WordPress内の画像を確認中...`;
+      let exists = false;
+      try {
+        const mRes = await fetch(
+          `${WP_URL}/wp-json/wp/v2/media?search=${encodeURIComponent(featuredNum)}&per_page=10`,
+          { headers: { 'Authorization': WP_AUTH } }
+        );
+        if (mRes.ok) {
+          const mItems = await mRes.json();
+          exists = !!mItems.find(m => m.source_url && m.source_url.includes(featuredNum));
+        }
+      } catch(e){}
+      if (exists) {
+        featuredEl.style.background = '#ecfdf5';
+        featuredEl.style.border = '1px solid #a7f3d0';
+        featuredEl.style.color = '#065f46';
+        featuredEl.innerHTML = `✅ WordPress内にあります（追加アップロード不要）`;
+      } else {
+        featuredEl.style.background = '#fffbeb';
+        featuredEl.style.border = '1px solid #fde68a';
+        featuredEl.style.color = '#92400e';
+        featuredEl.innerHTML = `⚠️ WordPress内にありません<br><span style="font-size:10px;">Pixtaからダウンロードして上にアップロードしてください。</span>`;
+      }
+    }
   }
 
   // ===== ドキュメントテキスト解析 =====
