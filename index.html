@@ -690,6 +690,9 @@
 
       const text = (elem.innerText || elem.textContent || '').replace(/^[\s\u3000\u00a0]+|[\s\u3000\u00a0]+$/g, '');
 
+      // 空要素はskipNextPixtaフラグを保持したままスキップ（タイトル直下の空行を無視するため）
+      if (!text) continue;
+
       // pixta素材番号の処理（altテキスト・表記揺れ・alt内括弧にも対応）
       const pixtaMatch = text.match(/^(?:（\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*([^）]*?))?\s*）|\(\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*([^)]*?))?\s*\))\s*$/i);
       if (pixtaMatch) {
@@ -705,9 +708,6 @@
         continue;
       }
       skipNextPixta = false;
-
-      // 空要素はスキップ
-      if (!text) continue;
 
       const tag = elem.tagName.toLowerCase();
 
