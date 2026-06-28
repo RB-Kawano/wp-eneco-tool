@@ -688,13 +688,14 @@
       if (elem === titleElem) { reachedTitle = true; skipNextPixta = true; continue; }
       if (!reachedTitle) continue;
 
-      const text = (elem.innerText || elem.textContent || '').trim();
+      const text = (elem.innerText || elem.textContent || '').replace(/^[\s\u3000\u00a0]+|[\s\u3000\u00a0]+$/g, '');
 
       // pixta素材番号の処理（altテキスト・表記揺れ・alt内括弧にも対応）
       const pixtaMatch = text.match(/^(?:（\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*([^）]*?))?\s*）|\(\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*([^)]*?))?\s*\))\s*$/i);
       if (pixtaMatch) {
         const num = pixtaMatch[1] || pixtaMatch[3];
         const alt = (pixtaMatch[2] || pixtaMatch[4] || '').trim();
+        console.log('[pixta] 独立行マッチ:', num, '| alt:', alt, '| skipNext:', skipNextPixta);
         if (skipNextPixta) {
           skipNextPixta = false;
           featuredPixtaNum = num; // アイキャッチ用として番号を保持
@@ -1114,15 +1115,16 @@
       const key = parts[0].trim();
       const altText = (parts[1] || '').trim();
       const altAttr = altText.replace(/"/g, '&quot;');
-      const buildBlock = (url) => `\n<!-- wp:image -->\n<figure class="wp-block-image size-full"><img src="${url}" alt="${altAttr}" /></figure>\n<!-- /wp:image -->\n`;
+      // WordPressブロックエディタの正規形式：メディアIDをブロックコメントと imgクラスに含める
+      const buildBlock = (mediaId, url) => `\n<!-- wp:image {"id":${mediaId},"sizeSlug":"full","linkDestination":"none"} -->\n<figure class="wp-block-image size-full"><img src="${url}" alt="${altAttr}" class="wp-image-${mediaId}" /></figure>\n<!-- /wp:image -->\n`;
       // 完全一致で探す
       if (imageMap[key]) {
-        return buildBlock(imageMap[key].url);
+        return buildBlock(imageMap[key].id, imageMap[key].url);
       }
       // 部分一致で探す（素材番号だけのプレースホルダー対応）
       const found = Object.keys(imageMap).find(k => k.includes(key) || key.includes(k.replace(/\.[^.]+$/, '').replace(/^pixta_/, '').replace(/_[A-Z]+$/, '')));
       if (found) {
-        return buildBlock(imageMap[found].url);
+        return buildBlock(imageMap[found].id, imageMap[found].url);
       }
       return match;
     });
