@@ -395,6 +395,9 @@
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:7px">投稿リンク</div>
             <a id="postLinkUrl" class="link" target="_blank" href="#">投稿を開く →</a>
             <a id="editLinkUrl" class="link" target="_blank" href="#" style="margin-left:16px">編集画面 →</a>
+            <div style="margin-top:16px">
+              <button class="btn btn-primary" onclick="resetForNewPost()">📝 続けて別の記事を投稿する</button>
+            </div>
           </div>
         </div>
       </div>
@@ -473,6 +476,52 @@
       document.getElementById(`step-tab-${i}`).classList.toggle('active', i === n);
       if (i < n) document.getElementById(`step-tab-${i}`).classList.add('done');
     });
+  }
+
+  // ===== 「続けて別の記事を投稿する」: 入稿関連の状態をリセットしてSTEP1に戻る =====
+  function resetForNewPost() {
+    // フォーム入力をクリア
+    document.getElementById('gdocUrl').value = '';
+    document.getElementById('postTitle').value = '';
+    document.getElementById('postContent').value = '';
+    document.getElementById('metaDesc').value = '';
+    document.getElementById('seoTitle').value = '';
+    document.getElementById('canonicalUrl').value = '';
+    document.getElementById('postSlug').value = '';
+    const skipBox = document.getElementById('skipImages');
+    if (skipBox) skipBox.checked = false;
+
+    // アイキャッチ関連リセット
+    featuredFile = null;
+    window._featuredPixtaNum = null;
+    document.getElementById('featuredPreview').classList.remove('show');
+    document.getElementById('featuredZone').style.display = 'block';
+    const fHint = document.getElementById('featuredPixtaHint');
+    if (fHint) { fHint.textContent = ''; fHint.style.display = 'none'; }
+    const fStatus = document.getElementById('featuredStatus');
+    if (fStatus) { fStatus.innerHTML = ''; fStatus.style.display = 'none'; }
+
+    // 本文内画像リセット
+    bodyImageFiles = [];
+    if (typeof renderBodyImages === 'function') renderBodyImages();
+    const bStatus = document.getElementById('bodyImagesStatus');
+    if (bStatus) { bStatus.innerHTML = ''; bStatus.style.display = 'none'; }
+
+    // ステータス・進捗バーをクリア
+    setProgress(0);
+    const statusBox = document.getElementById('statusBox');
+    if (statusBox) { statusBox.textContent = ''; statusBox.className = 'status-box'; }
+    document.getElementById('postLink').style.display = 'none';
+
+    // STEP1に戻る
+    [1,2,3].forEach(i => {
+      document.getElementById(`step-tab-${i}`).classList.remove('done');
+    });
+    goStep(1);
+
+    // 文字数カウンターの再計算（あれば）
+    if (typeof updateCharCount === 'function') updateCharCount();
+    if (typeof updateSeoTitleCount === 'function') updateSeoTitleCount();
   }
 
   // ===== WordPress内に画像があるかチェック =====
