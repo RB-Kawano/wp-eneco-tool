@@ -613,8 +613,8 @@
   }
 
   // ===== ドキュメントテキスト解析 =====
-  // pixta素材番号にマッチする正規表現（大文字小文字・句読点・スペースの表記揺れに対応）
-  const PIXTA_RE = /[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*[^）)]*)?\s*[）)]/gi;
+  // pixta素材番号にマッチする正規表現（全角括弧/半角括弧それぞれ対応・alt内に対側括弧があってもOK）
+  const PIXTA_RE = /(?:（\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*[^）]*)?\s*）|\(\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*[^)]*)?\s*\))/gi;
 
   async function fetchGDoc() {
     const url = document.getElementById('gdocUrl').value.trim();
@@ -690,11 +690,11 @@
 
       const text = (elem.innerText || elem.textContent || '').trim();
 
-      // pixta素材番号の処理（altテキスト・表記揺れにも対応）
-      const pixtaMatch = text.match(/^[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*([^）)]*?))?\s*[）)]\s*$/i);
+      // pixta素材番号の処理（altテキスト・表記揺れ・alt内括弧にも対応）
+      const pixtaMatch = text.match(/^(?:（\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*([^）]*?))?\s*）|\(\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*([^)]*?))?\s*\))\s*$/i);
       if (pixtaMatch) {
-        const num = pixtaMatch[1];
-        const alt = (pixtaMatch[2] || '').trim();
+        const num = pixtaMatch[1] || pixtaMatch[3];
+        const alt = (pixtaMatch[2] || pixtaMatch[4] || '').trim();
         if (skipNextPixta) {
           skipNextPixta = false;
           featuredPixtaNum = num; // アイキャッチ用として番号を保持
@@ -817,7 +817,7 @@
     let text = elem.innerText || elem.textContent || '';
     // H1:・H2:・H3:・H4: などの手書きタグを除去
     text = text.replace(/^H[1-6][：:＊*]?\s*/i, '');
-    text = text.replace(/[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*[^）)]*)?\s*[）)]/gi, '').trim();
+    text = text.replace(/(?:（\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*[^）]*)?\s*）|\(\s*pixta\s*素材番号\s*[：:＊*]?\s*\d+(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*[^)]*)?\s*\))/gi, '').trim();
     return text;
   }
 
@@ -851,10 +851,11 @@
     html = html.replace(/\s(style|class|id|dir|data-[a-z-]+)="[^"]*"/gi, '');
     // spanタグは中身だけ残す
     html = html.replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1');
-    // pixta番号を画像プレースホルダーに変換（altテキスト・表記揺れにも対応）
-    html = html.replace(/[（(]\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*([^）)]*?))?\s*[）)]/gi,
-      (_, num, alt) => {
-        const altText = (alt || '').trim();
+    // pixta番号を画像プレースホルダーに変換（altテキスト・表記揺れ・alt内括弧にも対応）
+    html = html.replace(/(?:（\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*([^）]*?))?\s*）|\(\s*pixta\s*素材番号\s*[：:＊*]?\s*(\d+)(?:\s*[、,]?\s*[\s　]*alt(?:テキスト)?\s*[：:＊*]?\s*([^)]*?))?\s*\))/gi,
+      (_, num1, alt1, num2, alt2) => {
+        const num = num1 || num2;
+        const altText = (alt1 || alt2 || '').trim();
         return altText ? `<!--img:${num}|${altText}-->` : `<!--img:${num}-->`;
       });
     // テキストが空なら null
